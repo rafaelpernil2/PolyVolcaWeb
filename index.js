@@ -17,6 +17,8 @@ function onMIDISuccess() {
 
 function onMIDIFailure(msg) {
   console.log("Failed to get MIDI access - " + msg);
+  alert("Ooops! Your browser does not support WebMIDI. \nPlease use Google Chrome or a Chromium based browser (like Edge).");
+  window.location.href="about:blank";
 }
 
 /**
@@ -213,7 +215,12 @@ function noteOffChannelDecrease() {
 
 /** MAIN */
 (async () => {
-  const midiAccess = await navigator.requestMIDIAccess().catch(onMIDIFailure);
+  let midiAccess = null;
+  try {
+    midiAccess = await navigator.requestMIDIAccess();
+  } catch (error) {
+    onMIDIFailure();
+  }
   onMIDISuccess(midiAccess);
   setInputSelector(midiAccess);
   setInputChannelSelector();
