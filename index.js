@@ -3,6 +3,7 @@ let midiOutputSelected = null;
 let midiInputChannelSelected = null;
 let outputMidiChannel = 0;
 let algorithmSelected = null;
+let octaveOffset = null;
 const CC_MSG = "b";
 const NOTE_ON_MSG = "9";
 const NOTE_OFF_MSG = "8";
@@ -12,6 +13,12 @@ const ANY_DEVICE = "--- Any device ---";
 const ANY_DEVICE_VALUE = "anyDevice";
 const ANY_CHANNEL = "Any";
 const ANY_CHANNEL_VALUE = "x";
+const DEFAULT_OCTAVE = "Default"
+const DEFAULT_OCTAVE_VALUE = 4
+const OCTAVE_BELOW = "Octave below"
+const OCTAVE_BELOW_VALUE = -8
+const OCTAVE_ABOVE = "Octave above"
+const OCTAVE_ABOVE_VALUE = 16
 
 function onMIDISuccess() {
   console.log("MIDI ready!");
@@ -101,6 +108,18 @@ function setAlgorithmSelector() {
   algorithmSelected = ROUND_ROBIN;
 }
 
+function setOctaveSelector() {
+  const selector = document.getElementById("OctaveSelector");
+  selector.addEventListener("change", function () {
+    octaveOffset = Number(this.value);
+  });
+  addOptions(selector, OCTAVE_ABOVE, OCTAVE_ABOVE_VALUE);
+  addOptions(selector, DEFAULT_OCTAVE + " (Recommended)", DEFAULT_OCTAVE_VALUE);
+  addOptions(selector, OCTAVE_BELOW, OCTAVE_BELOW_VALUE);
+  selector.value = DEFAULT_OCTAVE_VALUE;
+  octaveOffset = DEFAULT_OCTAVE_VALUE;
+}
+
 /**
  * MIDI HANDLERS
  */
@@ -154,7 +173,7 @@ function forwardMIDIEvents(midiAccess) {
 
 function convertNoteToVolcaPitch(midiAccess, note) {
   // Prepare messages, first CC and then note
-  const moddedNote = parseInt(note, 16) + 4;
+  const moddedNote = parseInt(note, 16) + octaveOffset;
   const hexOutputChannel = outputMidiChannel.toString(16);
 
   // Send converted note over CC#49
@@ -232,5 +251,6 @@ function noteOffChannelDecrease() {
   setOutputSelector(midiAccess);
   setSampleSelector(midiAccess);
   setAlgorithmSelector();
+  setOctaveSelector();
   forwardMIDIEvents(midiAccess);
 })();
