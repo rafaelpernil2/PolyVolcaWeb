@@ -1,0 +1,12 @@
+kind: Service
+apiVersion: v1
+metadata:
+  name: poly-volca-web
+  namespace: openfaas-fn
+spec:
+  ports:
+    - port: 80
+      targetPort: 80
+      protocol: TCP
+  selector:
+    app: poly-volca-web

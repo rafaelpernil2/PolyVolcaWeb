@@ -1,0 +1,24 @@
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: poly-volca-web
+  namespace: openfaas-fn
+  labels:
+    app: poly-volca-web
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: poly-volca-web
+  template:
+    metadata:
+      labels:
+        app: poly-volca-web
+    spec:
+      containers:
+        - name: poly-volca-web
+          image: rafaelpernil/poly-volca-web
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 80
+      restartPolicy: Always
