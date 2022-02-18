@@ -9,7 +9,9 @@ const NOTE_OFF_MSG = "8";
 const ROUND_ROBIN = "Round Robin";
 const NOTE_COUNT = "Active note count";
 const ANY_DEVICE = "--- Any device ---";
+const ANY_DEVICE_VALUE = "anyDevice";
 const ANY_CHANNEL = "Any";
+const ANY_CHANNEL_VALUE = "x";
 
 function onMIDISuccess() {
   console.log("MIDI ready!");
@@ -17,8 +19,10 @@ function onMIDISuccess() {
 
 function onMIDIFailure(msg) {
   console.log("Failed to get MIDI access - " + msg);
-  alert("Ooops! Your browser does not support WebMIDI. \nPlease use Google Chrome or a Chromium based browser (like Edge).");
-  window.location.href="about:blank";
+  alert(
+    "Ooops! Your browser does not support WebMIDI. \nPlease use Google Chrome or a Chromium based browser (like Edge)."
+  );
+  window.location.href = "about:blank";
 }
 
 /**
@@ -28,7 +32,7 @@ function setInputSelector(midiAccess) {
   const selector = document.getElementById("InputSelector");
   // Event listener
   selector.addEventListener("change", function () {
-    if (midiInputSelected === ANY_DEVICE) {
+    if (midiInputSelected === ANY_DEVICE_VALUE) {
       for (const [, device] of midiAccess.inputs) {
         device.onmidimessage = null;
       }
@@ -42,12 +46,10 @@ function setInputSelector(midiAccess) {
     forwardMIDIEvents(midiAccess);
   });
   // Options
-  addOptions(selector, ANY_DEVICE, ANY_DEVICE);
+  addOptions(selector, ANY_DEVICE, ANY_DEVICE_VALUE);
   for (const [id, midiInput] of midiAccess.inputs) {
     addOptions(selector, midiInput.name, id);
   }
-  // Initial value
-  selector.value = null;
 }
 
 function setInputChannelSelector() {
@@ -57,12 +59,10 @@ function setInputChannelSelector() {
     midiInputChannelSelected = this.value;
   });
   // Options
-  addOptions(channelSelector, ANY_CHANNEL, ANY_CHANNEL);
+  addOptions(channelSelector, ANY_CHANNEL, ANY_CHANNEL_VALUE);
   for (let index = 0; index < 16; index++) {
     addOptions(channelSelector, String(index + 1), index.toString(16));
   }
-  // Initial value
-  channelSelector.value = null;
 }
 
 function setOutputSelector(midiAccess) {
@@ -70,10 +70,10 @@ function setOutputSelector(midiAccess) {
   selector.addEventListener("change", function () {
     midiOutputSelected = this.value;
   });
+  let init = true;
   for (const [id, midiOutput] of midiAccess.outputs) {
-    addOptions(selector, midiOutput.name, id);
-    // Intelligent auto initialization
-    selector.value = null;
+    addOptions(selector, midiOutput.name, id, { init });
+    init = false;
     if (midiOutput.name.includes("sample")) {
       selector.value = id;
       midiOutputSelected = id;
@@ -114,10 +114,12 @@ function onMIDIMessage(midiAccess) {
       noteCC: hexArray?.[1] ?? "",
       velocityValue: hexArray?.[2] ?? "",
     };
-    if (String(midiInputChannelSelected) !== ANY_CHANNEL && channel !== midiInputChannelSelected) {
+    if (
+      String(midiInputChannelSelected) !== ANY_CHANNEL_VALUE &&
+      channel !== midiInputChannelSelected
+    ) {
       return;
     }
-    midiAccess
     switch (header) {
       case NOTE_ON_MSG:
         convertNoteToVolcaPitch(midiAccess, noteCC, velocityValue);
@@ -135,7 +137,7 @@ function forwardMIDIEvents(midiAccess) {
   if (midiInputSelected == null) {
     return;
   }
-  if (midiInputSelected === ANY_DEVICE) {
+  if (midiInputSelected === ANY_DEVICE_VALUE) {
     for (const [, device] of midiAccess.inputs) {
       device.onmidimessage = onMIDIMessage(midiAccess);
     }
@@ -199,11 +201,14 @@ function sampleSelect(midiAccess, sampleNumber) {
 
 /** UTILS */
 
-function addOptions(selector, text, value) {
+function addOptions(selector, text, value, { init = true } = {}) {
   const option = document.createElement("option");
   option.text = text;
   option.value = value;
   selector.appendChild(option);
+  if (init) {
+    selector.value = null;
+  }
 }
 
 function noteOffChannelDecrease() {
