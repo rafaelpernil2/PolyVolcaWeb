@@ -10,3 +10,4 @@ spec:
       protocol: TCP
   selector:
     app: poly-volca-web
+  type: LoadBalancer
