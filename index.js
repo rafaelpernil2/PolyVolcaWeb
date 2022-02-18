@@ -71,6 +71,7 @@ function setOutputSelector(midiAccess) {
   for (const [id, midiOutput] of midiAccess.outputs) {
     addOptions(selector, midiOutput.name, id);
     // Intelligent auto initialization
+    selector.value = null;
     if (midiOutput.name.includes("sample")) {
       selector.value = id;
       midiOutputSelected = id;
