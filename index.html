@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PolyVolcaWeb</title>
+</head>
+
+<body style="background-color: azure; color:firebrick">
+    <h1>PolyVolcaWeb</h1>
+    <h2>Input</h2>
+    <div style="display: flex; align-items: center;">
+        <h3>Device:&nbsp</h3>
+        <select required="true" title="InputSelector" name="InputSelector" id="InputSelector"></select>
+    </div>
+    <div style="display: flex; align-items: center;">
+        <h3>Channel:&nbsp</h3>
+        <select required="true" title="InputChannelSelector" name="InputChannelSelector"
+            id="InputChannelSelector"></select>
+    </div>
+    <br />
+    <br />
+    <h2>Output</h2>
+    <p>Here select your volca sample2</p>
+    <div style="display: flex; align-items: center;">
+        <h3>Device:&nbsp</h3>
+        <select required="true" title="OutputSelector" name="OutputSelector" id="OutputSelector"></select>
+    </div>
+    <div style="display: flex; align-items: center;">
+        <h3>Sample:&nbsp</h3>
+        <input title="SampleSelector" type="number" name="SampleSelector" id="SampleSelector" min="0" max="199"></input>
+    </div>
+    <div style="display: flex; align-items: center;">
+        <h3>Algorithm:&nbsp</h3>
+        <select required="true" title="AlgorithmSelector" name="AlgorithmSelector" id="AlgorithmSelector"></select>
+    </div>
+</body>
+<script src="index.js"></script>
+
+</html>
