@@ -186,8 +186,8 @@ function convertNoteToVolcaPitch(midiAccess, note) {
   // Generic note message to trigger the output
   const noteMessage = [
     parseInt(`${NOTE_ON_MSG}${hexOutputChannel}`, 16),
-    0x64,
-    0x7f,
+    60,
+    127,
   ];
 
   const output = midiAccess.outputs.get(midiOutputSelected);
