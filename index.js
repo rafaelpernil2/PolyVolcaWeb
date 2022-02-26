@@ -4,6 +4,7 @@ let midiInputChannelSelected = null;
 let outputMidiChannel = 0;
 let algorithmSelected = null;
 let octaveOffset = null;
+let velocityToggle = null;
 const CC_MSG = "b";
 const NOTE_ON_MSG = "9";
 const NOTE_OFF_MSG = "8";
@@ -13,12 +14,16 @@ const ANY_DEVICE = "--- Any device ---";
 const ANY_DEVICE_VALUE = "anyDevice";
 const ANY_CHANNEL = "Any";
 const ANY_CHANNEL_VALUE = "x";
-const DEFAULT_OCTAVE = "Default"
-const DEFAULT_OCTAVE_VALUE = 4
-const OCTAVE_BELOW = "Octave below"
-const OCTAVE_BELOW_VALUE = -8
-const OCTAVE_ABOVE = "Octave above"
-const OCTAVE_ABOVE_VALUE = 16
+const DEFAULT_OCTAVE = "Default";
+const DEFAULT_OCTAVE_VALUE = 4;
+const OCTAVE_BELOW = "Octave below";
+const OCTAVE_BELOW_VALUE = -8;
+const OCTAVE_ABOVE = "Octave above";
+const OCTAVE_ABOVE_VALUE = 16;
+const VELOCITY_TOGGLE_OFF = "Max velocity";
+const VELOCITY_TOGGLE_OFF_VALUE = false;
+const VELOCITY_TOGGLE_ON = "Velocity sensisitve";
+const VELOCITY_TOGGLE_ON_VALUE = true;
 
 function onMIDISuccess() {
   console.log("MIDI ready!");
@@ -120,6 +125,21 @@ function setOctaveSelector() {
   octaveOffset = DEFAULT_OCTAVE_VALUE;
 }
 
+function setVelocityToggleSelector() {
+  const selector = document.getElementById("VelocityToggleSelector");
+  selector.addEventListener("change", function () {
+    velocityToggle = this.value === "true";
+  });
+  addOptions(
+    selector,
+    VELOCITY_TOGGLE_ON + " (Recommended)",
+    VELOCITY_TOGGLE_ON_VALUE
+  );
+  addOptions(selector, VELOCITY_TOGGLE_OFF, VELOCITY_TOGGLE_OFF_VALUE);
+  selector.value = VELOCITY_TOGGLE_ON_VALUE;
+  velocityToggle = VELOCITY_TOGGLE_ON_VALUE;
+}
+
 /**
  * MIDI HANDLERS
  */
@@ -171,16 +191,25 @@ function forwardMIDIEvents(midiAccess) {
 
 /** Custom functions for Volca Sample2 */
 
-function convertNoteToVolcaPitch(midiAccess, note) {
+function convertNoteToVolcaPitch(midiAccess, note, velocity) {
   // Prepare messages, first CC and then note
   const moddedNote = parseInt(note, 16) + octaveOffset;
   const hexOutputChannel = outputMidiChannel.toString(16);
 
   // Send converted note over CC#49
-  const ccMessage = [
+  const pitchMessage = [
     parseInt(`${CC_MSG}${hexOutputChannel}`, 16),
     49,
     moddedNote,
+  ];
+
+  const moddedVelocity = velocityToggle ? parseInt(velocity, 16) : 127;
+
+  // Send converted pitch over CC#7
+  const velocityMessage = [
+    parseInt(`${CC_MSG}${hexOutputChannel}`, 16),
+    7,
+    moddedVelocity,
   ];
 
   // Generic note message to trigger the output
@@ -191,7 +220,8 @@ function convertNoteToVolcaPitch(midiAccess, note) {
   ];
 
   const output = midiAccess.outputs.get(midiOutputSelected);
-  output.send(ccMessage);
+  output.send(pitchMessage);
+  output.send(velocityMessage);
   output.send(noteMessage);
 
   // Round robin algorithm
@@ -252,5 +282,6 @@ function noteOffChannelDecrease() {
   setSampleSelector(midiAccess);
   setAlgorithmSelector();
   setOctaveSelector();
+  setVelocityToggleSelector();
   forwardMIDIEvents(midiAccess);
 })();
