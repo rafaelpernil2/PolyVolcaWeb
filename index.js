@@ -5,12 +5,15 @@ let outputMidiChannel = 0;
 let algorithmSelected = null;
 let octaveOffset = null;
 let velocityToggle = null;
+let stereoSpreadToggle = null;
+let reverbToggle = null;
 const CC_MSG = "b";
 const NOTE_ON_MSG = "9";
 const NOTE_OFF_MSG = "8";
 const ROUND_ROBIN = "Round Robin";
 const NOTE_COUNT = "Active note count";
 const ANY_DEVICE = "--- Any device ---";
+const RECOMMENDED = " (Recommended)";
 const ANY_DEVICE_VALUE = "anyDevice";
 const ANY_CHANNEL = "Any";
 const ANY_CHANNEL_VALUE = "x";
@@ -20,10 +23,18 @@ const OCTAVE_BELOW = "Octave below";
 const OCTAVE_BELOW_VALUE = -8;
 const OCTAVE_ABOVE = "Octave above";
 const OCTAVE_ABOVE_VALUE = 16;
-const VELOCITY_TOGGLE_OFF = "Max velocity";
+const VELOCITY_TOGGLE_OFF = "Max. velocity fixed";
 const VELOCITY_TOGGLE_OFF_VALUE = false;
-const VELOCITY_TOGGLE_ON = "Velocity sensisitve";
+const VELOCITY_TOGGLE_ON = "Velocity sensitive";
 const VELOCITY_TOGGLE_ON_VALUE = true;
+const STEREO_SPREAD_TOGGLE_OFF = "Mono";
+const STEREO_SPREAD_TOGGLE_OFF_VALUE = false;
+const STEREO_SPREAD_TOGGLE_ON = "Stereo";
+const STEREO_SPREAD_TOGGLE_ON_VALUE = true;
+const REVERB_TOGGLE_OFF = "Off";
+const REVERB_TOGGLE_OFF_VALUE = false;
+const REVERB_TOGGLE_ON = "On";
+const REVERB_TOGGLE_ON_VALUE = true;
 
 function onMIDISuccess() {
   console.log("MIDI ready!");
@@ -81,6 +92,7 @@ function setOutputSelector(midiAccess) {
   const selector = document.getElementById("OutputSelector");
   selector.addEventListener("change", function () {
     midiOutputSelected = this.value;
+    reverbActivator(midiAccess);
   });
   let init = true;
   for (const [id, midiOutput] of midiAccess.outputs) {
@@ -107,7 +119,7 @@ function setAlgorithmSelector() {
     outputMidiChannel = 0;
     algorithmSelected = this.value;
   });
-  addOptions(selector, ROUND_ROBIN + " (Recommended)", ROUND_ROBIN);
+  addOptions(selector, ROUND_ROBIN + RECOMMENDED, ROUND_ROBIN);
   addOptions(selector, NOTE_COUNT, NOTE_COUNT);
   selector.value = ROUND_ROBIN;
   algorithmSelected = ROUND_ROBIN;
@@ -119,7 +131,7 @@ function setOctaveSelector() {
     octaveOffset = Number(this.value);
   });
   addOptions(selector, OCTAVE_ABOVE, OCTAVE_ABOVE_VALUE);
-  addOptions(selector, DEFAULT_OCTAVE + " (Recommended)", DEFAULT_OCTAVE_VALUE);
+  addOptions(selector, DEFAULT_OCTAVE + RECOMMENDED, DEFAULT_OCTAVE_VALUE);
   addOptions(selector, OCTAVE_BELOW, OCTAVE_BELOW_VALUE);
   selector.value = DEFAULT_OCTAVE_VALUE;
   octaveOffset = DEFAULT_OCTAVE_VALUE;
@@ -132,12 +144,44 @@ function setVelocityToggleSelector() {
   });
   addOptions(
     selector,
-    VELOCITY_TOGGLE_ON + " (Recommended)",
+    VELOCITY_TOGGLE_ON + RECOMMENDED,
     VELOCITY_TOGGLE_ON_VALUE
   );
   addOptions(selector, VELOCITY_TOGGLE_OFF, VELOCITY_TOGGLE_OFF_VALUE);
   selector.value = VELOCITY_TOGGLE_ON_VALUE;
   velocityToggle = VELOCITY_TOGGLE_ON_VALUE;
+}
+
+function setStereoSpreadToggleSelector() {
+  const selector = document.getElementById("StereoSpreadToggleSelector");
+  selector.addEventListener("change", function () {
+    stereoSpreadToggle = this.value === "true";
+  });
+  addOptions(
+    selector,
+    STEREO_SPREAD_TOGGLE_ON + RECOMMENDED,
+    STEREO_SPREAD_TOGGLE_ON_VALUE
+  );
+  addOptions(
+    selector,
+    STEREO_SPREAD_TOGGLE_OFF,
+    STEREO_SPREAD_TOGGLE_OFF_VALUE
+  );
+  selector.value = STEREO_SPREAD_TOGGLE_ON_VALUE;
+  stereoSpreadToggle = STEREO_SPREAD_TOGGLE_ON_VALUE;
+}
+
+function setReverbSelector(midiAccess) {
+  const selector = document.getElementById("ReverbToggleSelector");
+  selector.addEventListener("change", function () {
+    reverbToggle = this.value === "true";
+    reverbActivator(midiAccess);
+  });
+  addOptions(selector, REVERB_TOGGLE_ON + RECOMMENDED, REVERB_TOGGLE_ON_VALUE);
+  addOptions(selector, REVERB_TOGGLE_OFF, REVERB_TOGGLE_OFF_VALUE);
+  selector.value = REVERB_TOGGLE_ON_VALUE;
+  reverbToggle = REVERB_TOGGLE_ON_VALUE;
+  reverbActivator(midiAccess);
 }
 
 /**
@@ -193,37 +237,7 @@ function forwardMIDIEvents(midiAccess) {
 
 function convertNoteToVolcaPitch(midiAccess, note, velocity) {
   // Prepare messages, first CC and then note
-  const moddedNote = parseInt(note, 16) + octaveOffset;
-  const hexOutputChannel = outputMidiChannel.toString(16);
-
-  // Send converted note over CC#49
-  const pitchMessage = [
-    parseInt(`${CC_MSG}${hexOutputChannel}`, 16),
-    49,
-    moddedNote,
-  ];
-
-  const moddedVelocity = velocityToggle ? parseInt(velocity, 16) : 127;
-
-  // Send converted pitch over CC#7
-  const velocityMessage = [
-    parseInt(`${CC_MSG}${hexOutputChannel}`, 16),
-    7,
-    moddedVelocity,
-  ];
-
-  // Generic note message to trigger the output
-  const noteMessage = [
-    parseInt(`${NOTE_ON_MSG}${hexOutputChannel}`, 16),
-    60,
-    127,
-  ];
-
-  const output = midiAccess.outputs.get(midiOutputSelected);
-  output.send(pitchMessage);
-  output.send(velocityMessage);
-  output.send(noteMessage);
-
+  const channel = outputMidiChannel.toString(16);
   // Round robin algorithm
   if (algorithmSelected === ROUND_ROBIN) {
     outputMidiChannel = outputMidiChannel === 7 ? 0 : outputMidiChannel + 1;
@@ -232,6 +246,39 @@ function convertNoteToVolcaPitch(midiAccess, note, velocity) {
   else {
     outputMidiChannel = outputMidiChannel === 7 ? 7 : outputMidiChannel + 1;
   }
+
+  const ccMsg = parseInt(`${CC_MSG}${channel}`, 16);
+
+  const parsedNote = parseInt(note, 16);
+
+  // Send converted note over CC#49
+  const moddedNote = parsedNote + octaveOffset;
+  const pitchMessage = [ccMsg, 49, moddedNote];
+
+  // Send converted pitch over CC#7
+  const moddedVelocity = velocityToggle ? parseInt(velocity, 16) : 127;
+  const velocityMessage = [ccMsg, 7, moddedVelocity];
+
+  // Send converted pan over CC#10
+  // 1.375 is 88/64 to convert 88 notes to a 64 value range
+  // -21 is used to start at note 0 and end at 88
+  // Then we add 32 to adhere to range
+  // 64 is the default value
+  const moddedPan = stereoSpreadToggle
+    ? Math.floor((parsedNote - 21) / 1.375) + 32
+    : 64;
+  const panMessage = [ccMsg, 10, moddedPan];
+
+  // Generic note message to trigger the output
+  const noteMessage = [parseInt(`${NOTE_ON_MSG}${channel}`, 16), 60, 127];
+
+  const output = midiAccess.outputs.get(midiOutputSelected);
+  // Set CC values
+  output.send(pitchMessage);
+  output.send(velocityMessage);
+  output.send(panMessage);
+  // Trigger note
+  output.send(noteMessage);
 }
 
 function sampleSelect(midiAccess, sampleNumber) {
@@ -245,6 +292,17 @@ function sampleSelect(midiAccess, sampleNumber) {
     const LSBMessage = [parseInt(`${CC_MSG}${hexChannel}`, 16), 35, LSB];
     output.send(MSBMessage);
     output.send(LSBMessage);
+  }
+}
+
+function reverbActivator(midiAccess) {
+  const output = midiAccess.outputs.get(midiOutputSelected);
+  const value = reverbToggle ? 127 : 0;
+  for (let channel = 0; channel < 8; channel++) {
+    const hexChannel = channel.toString(16);
+    // Activate reverb on CC#70
+    const activateReverb = [parseInt(`${CC_MSG}${hexChannel}`, 16), 70, value];
+    output.send(activateReverb);
   }
 }
 
@@ -283,5 +341,7 @@ function noteOffChannelDecrease() {
   setAlgorithmSelector();
   setOctaveSelector();
   setVelocityToggleSelector();
+  setStereoSpreadToggleSelector();
+  setReverbSelector(midiAccess);
   forwardMIDIEvents(midiAccess);
 })();

@@ -10,8 +10,8 @@
 
 <body style="font-family: monospace">
     <h1>PolyVolcaWeb for volca sample2</h1>
-    <h3>A web application for using a KORG volca sample2 as an 8-voice polyphonic sample player.</h3>
-    <h4>Select your MIDI controller and channel as input, pick your volca as output, choose a sample and have fun!</h4>
+    <h3>A web application for using a KORG volca sample2 as a stereo 8-voice polyphonic sample-based synth.</h3>
+    <h4>Select your MIDI keyboard and channel as input, pick your volca as output, choose a sample and have fun!</h4>
     <h2>Input</h2>
     <div style="display: flex; align-items: center;">
         <h3>Device:&nbsp</h3>
@@ -33,18 +33,34 @@
         <h3>Sample:&nbsp</h3>
         <input title="SampleSelector" type="number" name="SampleSelector" id="SampleSelector" min="0" max="199"></input>
     </div>
+
+    <br />
+    <h2>Tweaks</h2>
     <div style="display: flex; align-items: center;">
         <h3>Algorithm:&nbsp</h3>
         <select required="true" title="AlgorithmSelector" name="AlgorithmSelector" id="AlgorithmSelector"></select>
     </div>
+    <p style="font-style:italic;">&nbsp&nbsp"Round Robin" is better in general but "Active Note Count" should be better to create sequences. Give it a try</p>
     <div style="display: flex; align-items: center;">
         <h3>Octave offset:&nbsp</h3>
         <select required="true" title="OctaveSelector" name="OctaveSelector" id="OctaveSelector"></select>
     </div>
+    <p style="font-style:italic;">&nbsp&nbspUse this option if your sample default pitch is not in middle C's octave</p>
     <div style="display: flex; align-items: center;">
         <h3>Key Velocity:&nbsp</h3>
         <select required="true" title="VelocityToggleSelector" name="VelocityToggleSelector" id="VelocityToggleSelector"></select>
     </div>
+    <p style="font-style:italic;">&nbsp&nbspEnables/disables velocity sensitivity. Fixed velocity sends 127 (max value)</p>
+    <div style="display: flex; align-items: center;">
+        <h3>Stereo spread:&nbsp</h3>
+        <select required="true" title="StereoSpreadToggleSelector" name="StereoSpreadToggleSelector" id="StereoSpreadToggleSelector"></select>
+    </div>
+    <p style="font-style:italic;">&nbsp&nbspWith "Stereo" mode, lower notes are slightly panned to the left and higher notes to the right. "Mono" is just mono, no panning</p>
+    <div style="display: flex; align-items: center;">
+        <h3>Reverb:&nbsp</h3>
+        <select required="true" title="ReverbToggleSelector" name="ReverbToggleSelector" id="ReverbToggleSelector"></select>
+    </div>
+    <p style="font-style:italic;">&nbsp&nbspChange the amount of Reverb using REVERB MIX knob in your volca</p>
     <br />
     <div style="position:relative; height: 400px">
         <div id="credits" style="position:absolute; bottom: 10px ">
