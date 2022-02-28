@@ -1,12 +1,20 @@
 let midiInputSelected = null;
 let midiOutputSelected = null;
-let midiInputChannelSelected = null;
+let midiLoopbackInputSelected = null;
+let inputMidiChannel = null;
 let outputMidiChannel = 0;
 let algorithmSelected = null;
 let octaveOffset = null;
 let velocityToggle = null;
 let stereoSpreadToggle = null;
 let reverbToggle = null;
+let isSustainOn = false;
+let noteOffToggle = true;
+let noteOnList = new Array(8);
+let sustainedNoteList = new Array(8);
+let sampleNumber = { MSB: 0, LSB: 0 };
+let LSBMessageCount = 0;
+const VOLCA_SAMPLE_NAME_MATCH = "sample";
 const CC_MSG = "b";
 const NOTE_ON_MSG = "9";
 const NOTE_OFF_MSG = "8";
@@ -35,6 +43,15 @@ const REVERB_TOGGLE_OFF = "Off";
 const REVERB_TOGGLE_OFF_VALUE = false;
 const REVERB_TOGGLE_ON = "On";
 const REVERB_TOGGLE_ON_VALUE = true;
+const NOTE_OFF_TOGGLE_OFF = "Off";
+const NOTE_OFF_TOGGLE_OFF_VALUE = false;
+const NOTE_OFF_TOGGLE_ON = "On";
+const NOTE_OFF_TOGGLE_ON_VALUE = true;
+
+// SOUND DESIGN PARAMETERS AVAILABLE
+// Sample No. MSB, Sample No. LSB, Sample Start Point, Length, Hi Cut,
+// Pitch EG Intensity, Atack, Decay, Amp EG Attack, Decay, Loop On/Off, Reverse On/Off
+const SOUND_DESIGN_CC_LIST = [3, 35, 40, 41, 42, 44, 45, 46, 47, 48, 68, 75];
 
 function onMIDISuccess() {
   console.log("MIDI ready!");
@@ -79,7 +96,7 @@ function setInputChannelSelector() {
   const channelSelector = document.getElementById("InputChannelSelector");
   // Event listener
   channelSelector.addEventListener("change", function () {
-    midiInputChannelSelected = this.value;
+    inputMidiChannel = this.value;
   });
   // Options
   addOptions(channelSelector, ANY_CHANNEL, ANY_CHANNEL_VALUE);
@@ -98,9 +115,27 @@ function setOutputSelector(midiAccess) {
   for (const [id, midiOutput] of midiAccess.outputs) {
     addOptions(selector, midiOutput.name, id, { init });
     init = false;
-    if (midiOutput.name.includes("sample")) {
+    if (midiOutput.name.includes(VOLCA_SAMPLE_NAME_MATCH)) {
       selector.value = id;
       midiOutputSelected = id;
+    }
+  }
+}
+
+function setLoopbackInputSelector(midiAccess) {
+  const selector = document.getElementById("LoopbackInputSelector");
+  selector.addEventListener("change", function () {
+    midiLoopbackInputSelected = this.value;
+    forwardLoopbackMIDIEvents(midiAccess);
+  });
+  let init = true;
+  for (const [id, midiInput] of midiAccess.inputs) {
+    addOptions(selector, midiInput.name, id, { init });
+    init = false;
+    if (midiInput.name.includes(VOLCA_SAMPLE_NAME_MATCH)) {
+      selector.value = id;
+      midiLoopbackInputSelected = id;
+      forwardLoopbackMIDIEvents(midiAccess);
     }
   }
 }
@@ -130,9 +165,9 @@ function setOctaveSelector() {
   selector.addEventListener("change", function () {
     octaveOffset = Number(this.value);
   });
-  addOptions(selector, OCTAVE_ABOVE, OCTAVE_ABOVE_VALUE);
-  addOptions(selector, DEFAULT_OCTAVE + RECOMMENDED, DEFAULT_OCTAVE_VALUE);
   addOptions(selector, OCTAVE_BELOW, OCTAVE_BELOW_VALUE);
+  addOptions(selector, DEFAULT_OCTAVE + RECOMMENDED, DEFAULT_OCTAVE_VALUE);
+  addOptions(selector, OCTAVE_ABOVE, OCTAVE_ABOVE_VALUE);
   selector.value = DEFAULT_OCTAVE_VALUE;
   octaveOffset = DEFAULT_OCTAVE_VALUE;
 }
@@ -184,11 +219,27 @@ function setReverbSelector(midiAccess) {
   reverbActivator(midiAccess);
 }
 
+function setNoteOffToggleSelector() {
+  const selector = document.getElementById("NoteOffToggleSelector");
+  selector.addEventListener("change", function () {
+    noteOffToggle = this.value === "true";
+    isSustainOn = !noteOffToggle;
+  });
+  addOptions(
+    selector,
+    NOTE_OFF_TOGGLE_ON + RECOMMENDED,
+    NOTE_OFF_TOGGLE_ON_VALUE
+  );
+  addOptions(selector, NOTE_OFF_TOGGLE_OFF, NOTE_OFF_TOGGLE_OFF_VALUE);
+  selector.value = NOTE_OFF_TOGGLE_ON_VALUE;
+  noteOffToggle = NOTE_OFF_TOGGLE_ON_VALUE;
+  isSustainOn = !noteOffToggle;
+}
+
 /**
  * MIDI HANDLERS
  */
-
-function onMIDIMessage(midiAccess) {
+function onMIDIMessage(midiAccess, { isLoopback = false } = {}) {
   return (event) => {
     const hexArray = [...event.data].map((chunk) => chunk.toString(16));
     const { header, channel, noteCC, velocityValue } = {
@@ -197,18 +248,24 @@ function onMIDIMessage(midiAccess) {
       noteCC: hexArray?.[1] ?? "",
       velocityValue: hexArray?.[2] ?? "",
     };
-    if (
-      String(midiInputChannelSelected) !== ANY_CHANNEL_VALUE &&
-      channel !== midiInputChannelSelected
-    ) {
+    if (isLoopback) {
+      header === CC_MSG &&
+        populateSoundDesign(midiAccess, channel, noteCC, velocityValue);
       return;
     }
+    if (inputMidiChannel !== ANY_CHANNEL_VALUE && channel !== inputMidiChannel)
+      return;
+
     switch (header) {
       case NOTE_ON_MSG:
         convertNoteToVolcaPitch(midiAccess, noteCC, velocityValue);
         break;
       case NOTE_OFF_MSG:
+        noteOffStopSound(midiAccess, noteCC);
         noteOffChannelDecrease();
+        break;
+      case CC_MSG:
+        checkSustainPedal(midiAccess, noteCC, velocityValue);
         break;
       default:
         break;
@@ -217,29 +274,40 @@ function onMIDIMessage(midiAccess) {
 }
 
 function forwardMIDIEvents(midiAccess) {
-  if (midiInputSelected == null) {
-    return;
-  }
+  if (midiInputSelected == null) return;
+
   if (midiInputSelected === ANY_DEVICE_VALUE) {
     for (const [, device] of midiAccess.inputs) {
       device.onmidimessage = onMIDIMessage(midiAccess);
     }
   } else {
     const midiInput = midiAccess.inputs.get(midiInputSelected);
-    if (midiInput == null) {
-      return;
-    }
+    if (midiInput == null) return;
+
     midiInput.onmidimessage = onMIDIMessage(midiAccess);
   }
+}
+
+function forwardLoopbackMIDIEvents(midiAccess) {
+  const midiInput = midiAccess.inputs.get(midiLoopbackInputSelected);
+  if (midiInput == null) return;
+
+  midiInput.onmidimessage = onMIDIMessage(midiAccess, { isLoopback: true });
 }
 
 /** Custom functions for Volca Sample2 */
 
 function convertNoteToVolcaPitch(midiAccess, note, velocity) {
+  const parsedNote = parseInt(note, 16);
   // Prepare messages, first CC and then note
   const channel = outputMidiChannel.toString(16);
   // Round robin algorithm
   if (algorithmSelected === ROUND_ROBIN) {
+    // There is an array of channels per note because due to RoundRobin and timing issues, there could be a pitch repeated through different channels
+    // This removes random notes that should stop but don't
+    // Note count algorithm does not work with note-off message
+    noteOnList[outputMidiChannel] = parsedNote;
+    sustainedNoteList[outputMidiChannel] = null;
     outputMidiChannel = outputMidiChannel === 7 ? 0 : outputMidiChannel + 1;
   }
   // Active note count algorithm
@@ -249,13 +317,11 @@ function convertNoteToVolcaPitch(midiAccess, note, velocity) {
 
   const ccMsg = parseInt(`${CC_MSG}${channel}`, 16);
 
-  const parsedNote = parseInt(note, 16);
-
   // Send converted note over CC#49
   const moddedNote = parsedNote + octaveOffset;
   const pitchMessage = [ccMsg, 49, moddedNote];
 
-  // Send converted pitch over CC#7
+  // Send converted level over CC#7
   const moddedVelocity = velocityToggle ? parseInt(velocity, 16) : 127;
   const velocityMessage = [ccMsg, 7, moddedVelocity];
 
@@ -274,11 +340,11 @@ function convertNoteToVolcaPitch(midiAccess, note, velocity) {
 
   const output = midiAccess.outputs.get(midiOutputSelected);
   // Set CC values
-  output.send(pitchMessage);
-  output.send(velocityMessage);
-  output.send(panMessage);
+  output.send(pitchMessage, window.performance.now());
+  output.send(velocityMessage, window.performance.now());
+  output.send(panMessage, window.performance.now());
   // Trigger note
-  output.send(noteMessage);
+  output.send(noteMessage, window.performance.now());
 }
 
 function sampleSelect(midiAccess, sampleNumber) {
@@ -290,9 +356,23 @@ function sampleSelect(midiAccess, sampleNumber) {
     const MSBMessage = [parseInt(`${CC_MSG}${hexChannel}`, 16), 3, MSB];
     // LSB goes to CC#35
     const LSBMessage = [parseInt(`${CC_MSG}${hexChannel}`, 16), 35, LSB];
-    output.send(MSBMessage);
-    output.send(LSBMessage);
+    output.send(MSBMessage, window.performance.now());
+    output.send(LSBMessage, window.performance.now());
   }
+}
+
+function getSampleNumberFromMIDI() {
+  const { MSB, LSB } = sampleNumber;
+  return MSB * 100 + LSB;
+}
+
+function updateSampleInput() {
+  const sampleSelector = document.getElementById("SampleSelector");
+  sampleSelector.value = getSampleNumberFromMIDI();
+  // Reset octave offset
+  const selector = document.getElementById("OctaveSelector");
+  selector.value = DEFAULT_OCTAVE_VALUE;
+  octaveOffset = DEFAULT_OCTAVE_VALUE;
 }
 
 function reverbActivator(midiAccess) {
@@ -302,7 +382,7 @@ function reverbActivator(midiAccess) {
     const hexChannel = channel.toString(16);
     // Activate reverb on CC#70
     const activateReverb = [parseInt(`${CC_MSG}${hexChannel}`, 16), 70, value];
-    output.send(activateReverb);
+    output.send(activateReverb, window.performance.now());
   }
 }
 
@@ -313,16 +393,105 @@ function addOptions(selector, text, value, { init = true } = {}) {
   option.text = text;
   option.value = value;
   selector.appendChild(option);
-  if (init) {
-    selector.value = null;
+  if (init) selector.value = null;
+}
+
+function noteOffStopSound(midiAccess, note) {
+  if (algorithmSelected !== ROUND_ROBIN) return;
+
+  const parsedNote = parseInt(note, 16);
+  const output = midiAccess.outputs.get(midiOutputSelected);
+
+  for (let channel = 0; channel < noteOnList.length; channel++) {
+    const note = noteOnList[channel];
+    if (note !== parsedNote) continue;
+    if (isSustainOn) {
+      // Concatenates previous sustained notes channels with current note off that must wait until sustain pedal is released
+      sustainedNoteList[channel] = parsedNote;
+      continue;
+    }
+
+    // Stop all active notes now since sustain is off
+    // Decrease level to 0
+    const hexChannel = channel.toString(16);
+    const levelMessage = [parseInt(`${CC_MSG}${hexChannel}`, 16), 7, 0];
+
+    // Set CC values
+    output.send(levelMessage, window.performance.now());
+    noteOnList[channel] = null;
   }
 }
 
 function noteOffChannelDecrease() {
-  if (algorithmSelected !== NOTE_COUNT) {
+  if (algorithmSelected !== NOTE_COUNT) return;
+  outputMidiChannel = outputMidiChannel <= 0 ? 0 : outputMidiChannel - 1;
+}
+
+function checkSustainPedal(midiAccess, cc, value) {
+  const [parsedCC, parsedValue] = [parseInt(cc, 16), parseInt(value, 16)];
+  if (parsedCC !== 64 || !noteOffToggle) return;
+
+  isSustainOn = parsedValue === 127;
+
+  if (isSustainOn || algorithmSelected === NOTE_COUNT) return;
+
+  // Silence all sustained notes
+  const output = midiAccess.outputs.get(midiOutputSelected);
+  for (let channel = 0; channel < sustainedNoteList.length; channel++) {
+    const note = sustainedNoteList[channel];
+    if (note == null) continue;
+    const parsedChannel = channel.toString(16);
+    const levelMessage = [parseInt(`${CC_MSG}${parsedChannel}`, 16), 7, 0];
+    // Set CC values
+    output.send(levelMessage, window.performance.now());
+    sustainedNoteList[channel] = null;
+  }
+}
+
+function populateSoundDesign(midiAccess, currentChannel, cc, value) {
+  const [parsedChannel, parsedCC, parsedValue] = [
+    parseInt(currentChannel, 16),
+    parseInt(cc, 16),
+    parseInt(value, 16),
+  ];
+  if (!SOUND_DESIGN_CC_LIST.includes(parsedCC)) {
     return;
   }
-  outputMidiChannel = outputMidiChannel <= 0 ? 0 : outputMidiChannel - 1;
+
+  // Get sample number from MIDI CC
+  // MSB
+  if (parsedCC === 3) {
+    LSBMessageCount = 0;
+    sampleNumber.MSB = parsedValue;
+    updateSampleInput();
+  }
+  // LSB
+  if (parsedCC === 35) {
+    // if no MSB is sent, it is 0
+    if (LSBMessageCount === 1) {
+      sampleNumber.MSB = 0;
+      LSBMessageCount = 0;
+    }
+    sampleNumber.LSB = parsedValue;
+    LSBMessageCount++;
+    updateSampleInput();
+  }
+
+  // Populate sample sound design to all channels
+  const output = midiAccess.outputs.get(midiOutputSelected);
+  for (let channel = 0; channel < 8; channel++) {
+    // Avoid MIDI event loops
+    if (channel === parsedChannel) {
+      continue;
+    }
+    const hexChannel = channel.toString(16);
+    const ccMessage = [
+      parseInt(`${CC_MSG}${hexChannel}`, 16),
+      parsedCC,
+      parsedValue,
+    ];
+    output.send(ccMessage, window.performance.now());
+  }
 }
 
 /** MAIN */
@@ -337,11 +506,13 @@ function noteOffChannelDecrease() {
   setInputSelector(midiAccess);
   setInputChannelSelector();
   setOutputSelector(midiAccess);
+  setLoopbackInputSelector(midiAccess);
   setSampleSelector(midiAccess);
   setAlgorithmSelector();
   setOctaveSelector();
   setVelocityToggleSelector();
   setStereoSpreadToggleSelector();
+  setNoteOffToggleSelector();
   setReverbSelector(midiAccess);
   forwardMIDIEvents(midiAccess);
 })();

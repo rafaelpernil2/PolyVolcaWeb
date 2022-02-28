@@ -33,6 +33,11 @@
         <h3>Sample:&nbsp</h3>
         <input title="SampleSelector" type="number" name="SampleSelector" id="SampleSelector" min="0" max="199"></input>
     </div>
+    <div style="display: flex; align-items: center;">
+        <h3>Loopback device:&nbsp</h3>
+        <select required="true" title="LoopbackInputSelector" name="LoopbackInputSelector" id="LoopbackInputSelector"></select>
+    </div>
+    <p style="font-style:italic;">&nbsp&nbspSelect your volca input to use it as a controller for all 8 voices. Tweak your sample as you wish within your sample2!</p>
 
     <br />
     <h2>Tweaks</h2>
@@ -41,6 +46,7 @@
         <select required="true" title="AlgorithmSelector" name="AlgorithmSelector" id="AlgorithmSelector"></select>
     </div>
     <p style="font-style:italic;">&nbsp&nbsp"Round Robin" is better in general but "Active Note Count" should be better to create sequences. Give it a try</p>
+    <p style="font-style:italic;">&nbsp&nbsp&nbspNOTE: "Active Note Count" disables note-off and sustain pedal support</p>
     <div style="display: flex; align-items: center;">
         <h3>Octave offset:&nbsp</h3>
         <select required="true" title="OctaveSelector" name="OctaveSelector" id="OctaveSelector"></select>
@@ -61,6 +67,11 @@
         <select required="true" title="ReverbToggleSelector" name="ReverbToggleSelector" id="ReverbToggleSelector"></select>
     </div>
     <p style="font-style:italic;">&nbsp&nbspChange the amount of Reverb using REVERB MIX knob in your volca</p>
+    <div style="display: flex; align-items: center;">
+        <h3>Note Off detection:&nbsp</h3>
+        <select required="true" title="NoteOffToggleSelector" name="NoteOffToggleSelector" id="NoteOffToggleSelector"></select>
+    </div>
+    <p style="font-style:italic;">&nbsp&nbspBy default it detects note-off and sustain pedal and stops the sample at that point</p>
     <br />
     <div style="position:relative; height: 400px">
         <div id="credits" style="position:absolute; bottom: 10px ">
