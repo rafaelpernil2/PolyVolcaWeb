@@ -303,9 +303,6 @@ function convertNoteToVolcaPitch(midiAccess, note, velocity) {
   const channel = outputMidiChannel.toString(16);
   // Round robin algorithm
   if (algorithmSelected === ROUND_ROBIN) {
-    // There is an array of channels per note because due to RoundRobin and timing issues, there could be a pitch repeated through different channels
-    // This removes random notes that should stop but don't
-    // Note count algorithm does not work with note-off message
     noteOnList[outputMidiChannel] = parsedNote;
     sustainedNoteList[outputMidiChannel] = null;
     outputMidiChannel = outputMidiChannel === 7 ? 0 : outputMidiChannel + 1;
@@ -340,11 +337,11 @@ function convertNoteToVolcaPitch(midiAccess, note, velocity) {
 
   const output = midiAccess.outputs.get(midiOutputSelected);
   // Set CC values
-  output.send(pitchMessage, window.performance.now());
-  output.send(velocityMessage, window.performance.now());
-  output.send(panMessage, window.performance.now());
+  output.send(pitchMessage);
+  output.send(velocityMessage);
+  output.send(panMessage);
   // Trigger note
-  output.send(noteMessage, window.performance.now());
+  output.send(noteMessage);
 }
 
 function sampleSelect(midiAccess, sampleNumber) {
@@ -356,8 +353,8 @@ function sampleSelect(midiAccess, sampleNumber) {
     const MSBMessage = [parseInt(`${CC_MSG}${hexChannel}`, 16), 3, MSB];
     // LSB goes to CC#35
     const LSBMessage = [parseInt(`${CC_MSG}${hexChannel}`, 16), 35, LSB];
-    output.send(MSBMessage, window.performance.now());
-    output.send(LSBMessage, window.performance.now());
+    output.send(MSBMessage);
+    output.send(LSBMessage);
   }
 }
 
@@ -382,7 +379,7 @@ function reverbActivator(midiAccess) {
     const hexChannel = channel.toString(16);
     // Activate reverb on CC#70
     const activateReverb = [parseInt(`${CC_MSG}${hexChannel}`, 16), 70, value];
-    output.send(activateReverb, window.performance.now());
+    output.send(activateReverb);
   }
 }
 
@@ -417,7 +414,7 @@ function noteOffStopSound(midiAccess, note) {
     const levelMessage = [parseInt(`${CC_MSG}${hexChannel}`, 16), 7, 0];
 
     // Set CC values
-    output.send(levelMessage, window.performance.now());
+    output.send(levelMessage);
     noteOnList[channel] = null;
   }
 }
@@ -443,7 +440,7 @@ function checkSustainPedal(midiAccess, cc, value) {
     const parsedChannel = channel.toString(16);
     const levelMessage = [parseInt(`${CC_MSG}${parsedChannel}`, 16), 7, 0];
     // Set CC values
-    output.send(levelMessage, window.performance.now());
+    output.send(levelMessage);
     sustainedNoteList[channel] = null;
   }
 }
@@ -490,7 +487,7 @@ function populateSoundDesign(midiAccess, currentChannel, cc, value) {
       parsedCC,
       parsedValue,
     ];
-    output.send(ccMessage, window.performance.now());
+    output.send(ccMessage);
   }
 }
 
