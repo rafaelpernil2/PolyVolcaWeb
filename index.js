@@ -51,8 +51,10 @@ const NOTE_OFF_TOGGLE_ON_VALUE = true;
 
 // SOUND DESIGN PARAMETERS AVAILABLE
 // Sample No. MSB, Sample No. LSB, Sample Start Point, Length, Hi Cut,
-// Pitch EG Intensity, Atack, Decay, Amp EG Attack, Decay, Loop On/Off, Reverse On/Off
-const SOUND_DESIGN_CC_LIST = [3, 35, 40, 41, 42, 44, 45, 46, 47, 48, 68, 75];
+// Pitch EG Intensity, Atack, Decay, Amp EG Attack, Decay, Loop On/Off, Reverb On/Off, Reverse On/Off
+const SOUND_DESIGN_CC_LIST = [
+  3, 35, 40, 41, 42, 44, 45, 46, 47, 48, 68, 70, 75,
+];
 
 function onMIDISuccess() {
   console.log("MIDI ready!");
@@ -246,7 +248,7 @@ function onMIDIMessage(midiAccess, { isLoopback = false } = {}) {
     const [header, channel] = splitMIDIHeader(headerChunk);
     if (isLoopback) {
       header === CC_MSG &&
-        onSoundDesignChange(midiAccess, channel, noteCC, velocityValue);
+        onLoopbackCCChange(midiAccess, channel, noteCC, velocityValue);
       return;
     }
     // Filter by midi channel
@@ -300,6 +302,11 @@ function updateSampleInput() {
   const selector = document.getElementById("OctaveSelector");
   selector.value = DEFAULT_OCTAVE_VALUE;
   octaveOffset = DEFAULT_OCTAVE_VALUE;
+}
+
+function updateReverbSelector() {
+  const sampleSelector = document.getElementById("ReverbToggleSelector");
+  sampleSelector.value = reverbToggle;
 }
 
 function onNoteOn(midiAccess, note, velocity) {
@@ -417,7 +424,7 @@ function onSustainPedalChange(midiAccess, value) {
   }
 }
 
-function onSoundDesignChange(midiAccess, currentChannel, cc, value) {
+function onLoopbackCCChange(midiAccess, currentChannel, cc, value) {
   if (!SOUND_DESIGN_CC_LIST.includes(cc)) {
     return;
   }
@@ -439,6 +446,12 @@ function onSoundDesignChange(midiAccess, currentChannel, cc, value) {
     sampleNumber.LSB = value;
     LSBMessageCount++;
     updateSampleInput();
+  }
+
+  // Reverb Toggle
+  if (cc == 70) {
+    reverbToggle = value === 127;
+    updateReverbSelector();
   }
 
   // Populate sample sound design to all channels
