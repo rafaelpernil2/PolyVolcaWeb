@@ -35,9 +35,11 @@
     </div>
     <div style="display: flex; align-items: center;">
         <h3>Loopback device:&nbsp</h3>
-        <select required="true" title="LoopbackInputSelector" name="LoopbackInputSelector" id="LoopbackInputSelector"></select>
+        <select required="true" title="LoopbackInputSelector" name="LoopbackInputSelector"
+            id="LoopbackInputSelector"></select>
     </div>
-    <p style="font-style:italic;">&nbsp&nbspSelect your volca input to use it as a controller for all 8 voices. Tweak your sample as you wish within your sample2!</p>
+    <p style="font-style:italic;">&nbsp&nbspSelect your volca input to use it as a controller for all 8 voices. Tweak
+        your sample as you wish within your sample2!</p>
 
     <br />
     <h2>Tweaks</h2>
@@ -45,8 +47,10 @@
         <h3>Algorithm:&nbsp</h3>
         <select required="true" title="AlgorithmSelector" name="AlgorithmSelector" id="AlgorithmSelector"></select>
     </div>
-    <p style="font-style:italic;">&nbsp&nbsp"Round Robin" is better in general but "Active Note Count" should be better to create sequences. Give it a try</p>
-    <p style="font-style:italic;">&nbsp&nbsp&nbspNOTE: "Active Note Count" disables note-off and sustain pedal support</p>
+    <p style="font-style:italic;">&nbsp&nbsp"Round Robin" is better in general but "Active Note Count" should be better
+        to create sequences. Give it a try</p>
+    <p style="font-style:italic;">&nbsp&nbsp&nbspNOTE: "Active Note Count" disables note-off and sustain pedal support
+    </p>
     <div style="display: flex; align-items: center;">
         <h3>Octave offset:&nbsp</h3>
         <select required="true" title="OctaveSelector" name="OctaveSelector" id="OctaveSelector"></select>
@@ -54,24 +58,56 @@
     <p style="font-style:italic;">&nbsp&nbspUse this option if your sample default pitch is not in middle C's octave</p>
     <div style="display: flex; align-items: center;">
         <h3>Key Velocity:&nbsp</h3>
-        <select required="true" title="VelocityToggleSelector" name="VelocityToggleSelector" id="VelocityToggleSelector"></select>
+        <select required="true" title="VelocityToggleSelector" name="VelocityToggleSelector"
+            id="VelocityToggleSelector"></select>
     </div>
-    <p style="font-style:italic;">&nbsp&nbspEnables/disables velocity sensitivity. Fixed velocity sends 127 (max value)</p>
+    <p style="font-style:italic;">&nbsp&nbspEnables/disables velocity sensitivity. Fixed velocity sends 127 (max value)
+    </p>
     <div style="display: flex; align-items: center;">
         <h3>Stereo spread:&nbsp</h3>
-        <select required="true" title="StereoSpreadToggleSelector" name="StereoSpreadToggleSelector" id="StereoSpreadToggleSelector"></select>
+        <select required="true" title="StereoSpreadToggleSelector" name="StereoSpreadToggleSelector"
+            id="StereoSpreadToggleSelector"></select>
     </div>
-    <p style="font-style:italic;">&nbsp&nbspWith "Stereo" mode, lower notes are slightly panned to the left and higher notes to the right. "Mono" is just mono, no panning</p>
+    <p style="font-style:italic;">&nbsp&nbspWith "Stereo" mode, lower notes are slightly panned to the left and higher
+        notes to the right. "Mono" is just mono, no panning</p>
     <div style="display: flex; align-items: center;">
         <h3>Reverb:&nbsp</h3>
-        <select required="true" title="ReverbToggleSelector" name="ReverbToggleSelector" id="ReverbToggleSelector"></select>
+        <select required="true" title="ReverbToggleSelector" name="ReverbToggleSelector"
+            id="ReverbToggleSelector"></select>
     </div>
     <p style="font-style:italic;">&nbsp&nbspChange the amount of Reverb using REVERB MIX knob in your volca</p>
     <div style="display: flex; align-items: center;">
         <h3>Note Off detection:&nbsp</h3>
-        <select required="true" title="NoteOffToggleSelector" name="NoteOffToggleSelector" id="NoteOffToggleSelector"></select>
+        <select required="true" title="NoteOffToggleSelector" name="NoteOffToggleSelector"
+            id="NoteOffToggleSelector"></select>
     </div>
-    <p style="font-style:italic;">&nbsp&nbspBy default it detects note-off and sustain pedal and stops the sample at that point</p>
+    <p style="font-style:italic;">&nbsp&nbspBy default it detects note-off and sustain pedal and stops the sample at
+        that point</p>
+    <div style="display: flex; align-items: center;">
+        <h3>Multi-Layered Sampling Mode:&nbsp</h3>
+        <select required="true" title="MultiLayeredSamplingSelector" name="MultiLayeredSamplingSelector"
+            id="MultiLayeredSamplingSelector"></select>
+    </div>
+    <p style="font-style:italic;">&nbsp&nbspBy default it populates the same sample for all velocities</p>
+    <div style="display: none;" id="MultiLayeredSamplingDiv">
+        <div style="display: flex; align-items: center;">
+            <h3>Multi-Layered Sampling:&nbsp</h3>
+            <button id="AddSampleLayerButton">Add Sample Layer</button>
+            <button id="ResetSampleLayerButton">Reset</button>
+        </div>
+        <div style="display: flex; align-items: center;">
+            <table id="MultiLayeredSamplingTable">
+                <tr>
+                    <th>Sample</th>
+                    <th>Start Velocity</th>
+                </tr>
+                <!-- Here dynamically add rows -->
+            </table>
+            <p style="color: red; display: none;" id="errorP">&nbsp&nbsp&nbspMake sure all start velocities are
+                different
+                and in incremental order</p>
+        </div>
+    </div>
     <br />
     <div style="position:relative; height: 400px">
         <div id="credits" style="position:absolute; bottom: 10px ">

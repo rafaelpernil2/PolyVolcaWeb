@@ -14,6 +14,8 @@ let noteOnList = new Array(8);
 let sustainedNoteList = new Array(8);
 let sampleNumber = { MSB: 0, LSB: 0 };
 let LSBMessageCount = 0;
+let sampleLayerList = [];
+let multiSampleToggle = false;
 const SUSTAIN_PEDAL = 64;
 const VOLCA_SAMPLE_NAME_MATCH = "sample";
 const CC_MSG = 0xb;
@@ -48,6 +50,10 @@ const NOTE_OFF_TOGGLE_OFF = "Off";
 const NOTE_OFF_TOGGLE_OFF_VALUE = false;
 const NOTE_OFF_TOGGLE_ON = "On";
 const NOTE_OFF_TOGGLE_ON_VALUE = true;
+const MULTILAYER_SAMPLING_TOGGLE_OFF = "Off";
+const MULTILAYER_SAMPLING_TOGGLE_OFF_VALUE = false;
+const MULTILAYER_SAMPLING_TOGGLE_ON = "On";
+const MULTILAYER_SAMPLING_TOGGLE_ON_VALUE = true;
 
 // SOUND DESIGN PARAMETERS AVAILABLE
 // Sample No. MSB, Sample No. LSB, Sample Start Point, Length, Hi Cut,
@@ -55,6 +61,9 @@ const NOTE_OFF_TOGGLE_ON_VALUE = true;
 const SOUND_DESIGN_CC_LIST = [
   3, 35, 40, 41, 42, 44, 45, 46, 47, 48, 68, 70, 75,
 ];
+
+// DOM CACHING
+const table = document.getElementById("MultiLayeredSamplingTable");
 
 function onMIDISuccess() {
   console.log("MIDI ready!");
@@ -239,6 +248,153 @@ function initNoteOffToggleSelector() {
   isSustainOn = !noteOffToggle;
 }
 
+function initMultiLayeredSamplingToggleSelector() {
+  const selector = document.getElementById("MultiLayeredSamplingSelector");
+  selector.addEventListener("change", function () {
+    multiSampleToggle = this.value === "true";
+    const multiSampleDiv = document.getElementById("MultiLayeredSamplingDiv");
+    multiSampleDiv.style.display = multiSampleToggle ? "block" : "none";
+  });
+
+  addOptions(
+    selector,
+    MULTILAYER_SAMPLING_TOGGLE_OFF + RECOMMENDED,
+    MULTILAYER_SAMPLING_TOGGLE_OFF_VALUE
+  );
+  addOptions(
+    selector,
+    MULTILAYER_SAMPLING_TOGGLE_ON,
+    MULTILAYER_SAMPLING_TOGGLE_ON_VALUE
+  );
+  selector.value = MULTILAYER_SAMPLING_TOGGLE_OFF_VALUE;
+  multiSampleToggle = MULTILAYER_SAMPLING_TOGGLE_OFF_VALUE;
+}
+
+function initMultiLayeredSamplingTable() {
+  table.addEventListener("change", onTableValueChange);
+  table.addEventListener("keyup", onTableValueChange);
+  table.appendChild(createTableRow({ sampleNumber: null, startVelocity: 0 }));
+
+  const addButton = document.getElementById("AddSampleLayerButton");
+  const resetButton = document.getElementById("ResetSampleLayerButton");
+  addButton.addEventListener("click", onAddSampleLayer);
+  resetButton.addEventListener("click", onResetSampleLayers);
+}
+
+function onAddSampleLayer() {
+  const { sampleNumber, startVelocity: prevStartVelocity } =
+    getLastValidRow() ?? { startVelocity: -1 };
+  table.appendChild(
+    createTableRow({
+      sampleNumber,
+      startVelocity: (prevStartVelocity + 1) % 128,
+    })
+  );
+}
+
+function onResetSampleLayers() {
+  resetRowValidation();
+  const firstRow = sampleLayerList.shift();
+  for (const { rowReference } of sampleLayerList) {
+    if (rowReference == null) continue;
+    table.removeChild(rowReference);
+  }
+  sampleLayerList = [firstRow];
+}
+
+function onTableValueChange(event) {
+  const [type, textIndex] = event.target.id.split("-");
+  const value = Number(event.target.value);
+  const index = Number(textIndex);
+  if (type === "sampleNumber" || type === "startVelocity") {
+    sampleLayerList[index][type] = value;
+    validateTableRows();
+  }
+}
+
+function resetRowValidation() {
+  const errorP = document.getElementById("errorP");
+  errorP.style.display = "none";
+
+  for (let index = 0; index < sampleLayerList.length; index++) {
+    const element = document.getElementById("startVelocity-" + index);
+    if (element == null) continue;
+    element.style = "border: revert;";
+  }
+}
+
+function validateTableRows() {
+  resetRowValidation();
+
+  if (sampleLayerList.length < 2) return;
+
+  let velocityErrorIndexList = [];
+
+  for (let prev = 0, curr = 1; curr < sampleLayerList.length; prev++, curr++) {
+    if (
+      sampleLayerList[prev].startVelocity >= sampleLayerList[curr].startVelocity
+    )
+      velocityErrorIndexList.push(curr);
+  }
+
+  if (velocityErrorIndexList.length > 0) errorP.style.display = "block";
+
+  for (const index of velocityErrorIndexList) {
+    const element = document.getElementById("startVelocity-" + index);
+    if (element == null) continue;
+    element.style = "border: 1px solid red";
+  }
+}
+
+function createTableRow({ sampleNumber, startVelocity } = {}) {
+  const row = document.createElement("tr");
+
+  const tableDataLeft = document.createElement("td");
+
+  const sampleNumberElement = document.createElement("input");
+  sampleNumberElement.type = "number";
+  sampleNumberElement.min = 0;
+  sampleNumberElement.max = 199;
+  sampleNumberElement.value = sampleNumber;
+  sampleNumberElement.id = "sampleNumber-" + sampleLayerList.length;
+
+  const tableDataRight = document.createElement("td");
+
+  const startVelocityElement = document.createElement("input");
+  startVelocityElement.type = "number";
+  startVelocityElement.value = startVelocity;
+  startVelocityElement.min = 0;
+  startVelocityElement.max = 127;
+  startVelocityElement.id = "startVelocity-" + sampleLayerList.length;
+
+  const tableDataDeleteRow = document.createElement("td");
+
+  const deleteButton = document.createElement("button");
+  deleteButton.innerText = "Delete";
+  deleteButton.id = "deleteRowButton-" + sampleLayerList.length;
+  deleteButton.addEventListener("click", function (event) {
+    const [, textIndex] = event.target.id.split("-");
+    const index = Number(textIndex);
+    const sampleLayer = sampleLayerList[index];
+
+    if (sampleLayer == null) return;
+    table.removeChild(sampleLayer.rowReference);
+    sampleLayerList.splice(index, 1, {});
+  });
+
+  tableDataLeft.appendChild(sampleNumberElement);
+  tableDataRight.appendChild(startVelocityElement);
+  tableDataDeleteRow.appendChild(deleteButton);
+
+  row.appendChild(tableDataLeft);
+  row.appendChild(tableDataRight);
+  row.appendChild(tableDataDeleteRow);
+
+  sampleLayerList.push({ sampleNumber, startVelocity, rowReference: row });
+
+  return row;
+}
+
 /**
  * MIDI HANDLERS
  */
@@ -299,8 +455,8 @@ function updateSampleInput() {
   const sampleSelector = document.getElementById("SampleSelector");
   sampleSelector.value = getSampleNumberFromMIDI();
   // Reset octave offset
-  const selector = document.getElementById("OctaveSelector");
-  selector.value = DEFAULT_OCTAVE_VALUE;
+  const octaveSelector = document.getElementById("OctaveSelector");
+  octaveSelector.value = DEFAULT_OCTAVE_VALUE;
   octaveOffset = DEFAULT_OCTAVE_VALUE;
 }
 
@@ -328,6 +484,16 @@ function onNoteOn(midiAccess, note, velocity) {
   // Prepare messages, first CC and then note
   // Convert pitch to CC value
   const moddedPitch = note + octaveOffset;
+
+  if (multiSampleToggle) {
+    const sampleNumber = getSampleInRange(velocity);
+    if (sampleNumber == null) {
+      // If velocity is out of range, silence the sound
+      velocity = 0;
+    } else {
+      onSampleSelectionChange(midiAccess, sampleNumber);
+    }
+  }
 
   // Send velocity as level over CC#7
   const moddedVelocity = velocityToggle ? velocity : 127;
@@ -487,6 +653,20 @@ function splitMIDIHeader(chunk) {
   return [chunk >> 4, chunk & 0x0f];
 }
 
+function getSampleInRange(inputVelocity) {
+  for (let index = sampleLayerList.length - 1; index >= 0; index--) {
+    if (sampleLayerList[index].startVelocity <= inputVelocity)
+      return sampleLayerList[index].sampleNumber;
+  }
+}
+
+function getLastValidRow() {
+  for (let index = sampleLayerList.length - 1; index >= 0; index--) {
+    if (sampleLayerList[index].startVelocity != null)
+      return sampleLayerList[index];
+  }
+}
+
 /** MAIN */
 (async () => {
   let midiAccess = null;
@@ -506,6 +686,8 @@ function splitMIDIHeader(chunk) {
   initVelocityToggleSelector();
   initStereoSpreadToggleSelector();
   initNoteOffToggleSelector();
+  initMultiLayeredSamplingTable();
+  initMultiLayeredSamplingToggleSelector();
   initReverbSelector(midiAccess);
   forwardMIDIEvents(midiAccess);
 })();
