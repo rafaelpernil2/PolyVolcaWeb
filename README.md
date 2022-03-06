@@ -47,7 +47,7 @@ After releasing the first version, I have developed many big improvements that I
 * UI Global sample selector - Sets the selected sample in all volca channels
 * Global sample tweaking - Populates any sample modification to all volca channels
 * Channel allocation algorithms for polyphony - Round Robin and Active Note Count
-* Octave offsets - Compensates base octave of sample
+* Octave offset - Compensates base octave of sample
 * Velocity sensitivity - Maps Note On velocity to Level (CC#7)
 * Stereo spread - Pans lower notes to the left and higher notes to the right
 * Reverb - Enables reverb for all channels
