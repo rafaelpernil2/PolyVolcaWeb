@@ -12,7 +12,7 @@ let isSustainOn = false;
 let noteOffToggle = true;
 let noteOnList = new Array(8);
 let sustainedNoteList = new Array(8);
-let sampleNumber = { MSB: 0, LSB: 0 };
+let selectedSampleNumber = { MSB: 0, LSB: 0 };
 let LSBMessageCount = 0;
 let sampleLayerList = [];
 let multiSampleToggle = false;
@@ -254,6 +254,20 @@ function initMultiLayeredSamplingToggleSelector() {
     multiSampleToggle = this.value === "true";
     const multiSampleDiv = document.getElementById("MultiLayeredSamplingDiv");
     multiSampleDiv.style.display = multiSampleToggle ? "block" : "none";
+    if (sampleLayerList.length === 0) return;
+    if (multiSampleToggle) {
+      // Assign current selected sample
+      const currentSampleNumber = getSampleNumberFromMIDI();
+      const sampleInput = document.getElementById("sampleNumber-0");
+      sampleInput.value = currentSampleNumber;
+      sampleLayerList[0].sampleNumber = currentSampleNumber;
+    } else {
+      // Store first layer sample as current sample
+      const [MSB, LSB] = getSamplePartsfromNumber(
+        sampleLayerList[0].sampleNumber
+      );
+      selectedSampleNumber = { MSB, LSB };
+    }
   });
 
   addOptions(
@@ -312,6 +326,16 @@ function onTableValueChange(event) {
   }
 }
 
+function onDeleteRowClick(event) {
+  const [, textIndex] = event.target.id.split("-");
+  const index = Number(textIndex);
+  const sampleLayer = sampleLayerList[index];
+
+  if (sampleLayer == null) return;
+  table.removeChild(sampleLayer.rowReference);
+  sampleLayerList.splice(index, 1, {});
+}
+
 function resetRowValidation() {
   const errorP = document.getElementById("errorP");
   errorP.style.display = "none";
@@ -367,31 +391,27 @@ function createTableRow({ sampleNumber, startVelocity } = {}) {
   startVelocityElement.max = 127;
   startVelocityElement.id = "startVelocity-" + sampleLayerList.length;
 
-  const tableDataDeleteRow = document.createElement("td");
-
-  const deleteButton = document.createElement("button");
-  deleteButton.innerText = "Delete";
-  deleteButton.id = "deleteRowButton-" + sampleLayerList.length;
-  deleteButton.addEventListener("click", function (event) {
-    const [, textIndex] = event.target.id.split("-");
-    const index = Number(textIndex);
-    const sampleLayer = sampleLayerList[index];
-
-    if (sampleLayer == null) return;
-    table.removeChild(sampleLayer.rowReference);
-    sampleLayerList.splice(index, 1, {});
-  });
-
   tableDataLeft.appendChild(sampleNumberElement);
   tableDataRight.appendChild(startVelocityElement);
-  tableDataDeleteRow.appendChild(deleteButton);
 
   row.appendChild(tableDataLeft);
   row.appendChild(tableDataRight);
-  row.appendChild(tableDataDeleteRow);
+
+  // First row should not be deleted
+  if (sampleLayerList.length > 0) {
+    const tableDataDeleteRow = document.createElement("td");
+
+    const deleteButton = document.createElement("button");
+    deleteButton.innerText = "Delete";
+    deleteButton.id = "deleteRowButton-" + sampleLayerList.length;
+    deleteButton.addEventListener("click", onDeleteRowClick);
+
+    tableDataDeleteRow.appendChild(deleteButton);
+
+    row.appendChild(tableDataDeleteRow);
+  }
 
   sampleLayerList.push({ sampleNumber, startVelocity, rowReference: row });
-
   return row;
 }
 
@@ -517,7 +537,9 @@ function onNoteOn(midiAccess, note, velocity) {
 }
 
 function onSampleSelectionChange(midiAccess, sampleNumber) {
-  const [MSB, LSB] = [Math.floor(sampleNumber / 100), sampleNumber % 100];
+  const [MSB, LSB] = getSamplePartsfromNumber(sampleNumber);
+  // Update stored sample number
+  selectedSampleNumber = { MSB, LSB };
   const output = midiAccess.outputs.get(midiOutputSelected);
   for (let channel = 0; channel < 8; channel++) {
     const ccHeader = buildMIDIHeader(CC_MSG, channel);
@@ -599,17 +621,17 @@ function onLoopbackCCChange(midiAccess, currentChannel, cc, value) {
   // MSB
   if (cc === 3) {
     LSBMessageCount = 0;
-    sampleNumber.MSB = value;
+    selectedSampleNumber.MSB = value;
     updateSampleInput();
   }
   // LSB
   if (cc === 35) {
     // if no MSB is sent, it is 0
     if (LSBMessageCount === 1) {
-      sampleNumber.MSB = 0;
+      selectedSampleNumber.MSB = 0;
       LSBMessageCount = 0;
     }
-    sampleNumber.LSB = value;
+    selectedSampleNumber.LSB = value;
     LSBMessageCount++;
     updateSampleInput();
   }
@@ -641,8 +663,12 @@ function addOptions(selector, text, value, { init = true } = {}) {
 }
 
 function getSampleNumberFromMIDI() {
-  const { MSB, LSB } = sampleNumber;
+  const { MSB, LSB } = selectedSampleNumber;
   return MSB * 100 + LSB;
+}
+
+function getSamplePartsfromNumber(inputSample) {
+  return [Math.floor(inputSample / 100), inputSample % 100];
 }
 
 function buildMIDIHeader(type, channel) {
