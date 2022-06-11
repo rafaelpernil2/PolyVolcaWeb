@@ -26,6 +26,8 @@ const NOTE_COUNT = "Active note count";
 const ANY_DEVICE = "--- Any device ---";
 const RECOMMENDED = " (Recommended)";
 const ANY_DEVICE_VALUE = "anyDevice";
+const NO_DEVICE = "--- No device ---";
+const NO_DEVICE_VALUE = "noDevice"
 const ANY_CHANNEL = "Any";
 const ANY_CHANNEL_VALUE = -1;
 const DEFAULT_OCTAVE = "Default";
@@ -137,10 +139,27 @@ function initOutputSelector(midiAccess) {
 function initLoopbackInputSelector(midiAccess) {
   const selector = document.getElementById("LoopbackInputSelector");
   selector.addEventListener("change", function () {
+    // If the loopback input is the same as the input, we would override the input handler
+    // So we do nothing
+    if (this.value != null && midiInputSelected === this.value) {
+      return;
+    }
+
+    // Remove previous handler
+    const previousValue = midiAccess.inputs.get(midiLoopbackInputSelected);
+    if (previousValue != null) {
+      previousValue.onmidimessage = null;
+    }
+
+    // If it's NO_DEVICE, do not attach a listener
+    if(this.value === NO_DEVICE_VALUE){
+      return;
+    }
     midiLoopbackInputSelected = this.value;
     forwardLoopbackMIDIEvents(midiAccess);
   });
   let init = true;
+  addOptions(selector, NO_DEVICE, NO_DEVICE_VALUE);
   for (const [id, midiInput] of midiAccess.inputs) {
     addOptions(selector, midiInput.name, id, { init });
     init = false;
