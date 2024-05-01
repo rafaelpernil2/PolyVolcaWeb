@@ -152,7 +152,7 @@ function initLoopbackInputSelector(midiAccess) {
     }
 
     // If it's NO_DEVICE, do not attach a listener
-    if(this.value === NO_DEVICE_VALUE){
+    if (this.value === NO_DEVICE_VALUE) {
       return;
     }
     midiLoopbackInputSelected = this.value;
@@ -600,12 +600,8 @@ function onNoteOff(midiAccess, note) {
 }
 
 function onCCMessage(midiAccess, cc, value) {
-  switch (cc) {
-    case SUSTAIN_PEDAL:
-      onSustainPedalChange(midiAccess, value);
-      break;
-    default:
-      break;
+  if (cc === SUSTAIN_PEDAL) {
+    onSustainPedalChange(midiAccess, value);
   }
 }
 
@@ -720,7 +716,7 @@ function getLastValidRow() {
   } catch (error) {
     onMIDIFailure();
   }
-  onMIDISuccess(midiAccess);
+  onMIDISuccess();
   initInputSelector(midiAccess);
   initInputChannelSelector();
   initOutputSelector(midiAccess);
