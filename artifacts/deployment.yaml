@@ -19,11 +19,15 @@ spec:
         - name: poly-volca-web
           image: rafaelpernil/poly-volca-web
           imagePullPolicy: Always
+          serviceAccountName: custom-account
+          automountServiceAccountToken: false
           ports:
             - containerPort: 80
           resources:
             limits:
               memory: 1Gi
+              cpu: "500m"
             requests:
               memory: 1Gi
+              cpu: "250m"
       restartPolicy: Always
